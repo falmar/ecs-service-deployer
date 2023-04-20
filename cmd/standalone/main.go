@@ -34,11 +34,13 @@ func setFlags(cmd *cobra.Command) {
 	cmd.Flags().StringArrayP("containers", "c", []string{}, "Container images to update eg: (-c con1=image1 -c con2=image2)")
 	cmd.Flags().String("task", "", "ECS Task Definition family to update")
 	cmd.Flags().String("svc", "", "ECS Service to deploy")
+	cmd.Flags().String("cluster", "", "ECS Service's Cluster ARN")
 	cmd.Flags().String("region", "", "AWS Region")
 
 	_ = viper.BindPFlag("containers", cmd.Flags().Lookup("containers"))
 	_ = viper.BindPFlag("task", cmd.Flags().Lookup("task"))
 	_ = viper.BindPFlag("svc", cmd.Flags().Lookup("svc"))
+	_ = viper.BindPFlag("cluster", cmd.Flags().Lookup("cluster"))
 	_ = viper.BindPFlag("aws.region", cmd.Flags().Lookup("region"))
 }
 
@@ -62,6 +64,7 @@ func main() {
 			c := viper.GetStringSlice("containers")
 			task := viper.GetString("task")
 			svc := viper.GetString("svc")
+			cluster := viper.GetString("cluster")
 
 			if region := viper.GetString("aws.region"); region == "" {
 				return errors.New("no AWS Region specified")
@@ -71,6 +74,9 @@ func main() {
 			}
 			if svc == "" {
 				return errors.New("no ECS Service specified")
+			}
+			if cluster == "" {
+				return errors.New("no ECS Cluster specified")
 			}
 			if len(c) == 0 {
 				return errors.New("no containers specified")
@@ -110,12 +116,29 @@ func main() {
 			})
 
 			// update task
-			err = dp.UpdateTask(ctx, task, containers)
+			tasDefinition, err := dp.UpdateTask(ctx, &internal.UpdateTaskInput{
+				Family: task,
+				Images: containers,
+			})
 			if err != nil {
 				return err
 			}
 
 			// update service
+			service, err := dp.DeployService(ctx, &internal.DeployServiceInput{
+				Cluster:        cluster,
+				Service:        svc,
+				TaskDefinition: tasDefinition,
+			})
+			if err != nil {
+				return err
+			}
+
+			logger.Info(
+				"Service deployed",
+				zap.String("service", *service.ServiceName),
+				zap.String("task", *tasDefinition.Family),
+			)
 
 			return nil
 		},
