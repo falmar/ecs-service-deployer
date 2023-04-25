@@ -10,6 +10,6 @@ COPY /internal /go-app/internal
 RUN go build -ldflags="-s -w" -o ./main ./cmd/lambda && \
     chmod +x ./main
 
-FROM public.ecr.aws/lambda/go:1.2023.04.18.01
-COPY --from=builder /go-app/main /var/task/main
-CMD ["main"]
+FROM alpine:3.17
+COPY --from=builder /go-app/main /main
+ENTRYPOINT ["/main"]
