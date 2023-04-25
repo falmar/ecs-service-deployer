@@ -116,7 +116,7 @@ func main() {
 			})
 
 			// update task
-			tasDefinition, err := dp.UpdateTask(ctx, &internal.UpdateTaskInput{
+			taskDefinition, err := dp.UpdateTask(ctx, &internal.UpdateTaskInput{
 				Family: task,
 				Images: containers,
 			})
@@ -128,7 +128,7 @@ func main() {
 			service, err := dp.DeployService(ctx, &internal.DeployServiceInput{
 				Cluster:        cluster,
 				Service:        svc,
-				TaskDefinition: tasDefinition,
+				TaskDefinition: taskDefinition,
 			})
 			if err != nil {
 				return err
@@ -137,7 +137,7 @@ func main() {
 			logger.Info(
 				"Service deployed",
 				zap.String("service", *service.ServiceName),
-				zap.String("task", *tasDefinition.Family),
+				zap.String("task", *taskDefinition.Family),
 			)
 
 			return nil
