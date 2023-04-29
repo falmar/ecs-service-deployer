@@ -15,6 +15,9 @@ var ServiceNotFound = errors.New("service not found")
 type UpdateTaskInput struct {
 	Family string
 	Images []ContainerImage
+
+	// Deregister (optional) will deregister the previous task definition
+	Deregister bool
 }
 
 type DeployServiceInput struct {
@@ -115,12 +118,14 @@ func (d *deployer) UpdateTask(ctx context.Context, input *UpdateTaskInput) (*typ
 		return nil, err
 	}
 
-	// deregister old task definition
-	_, err = d.ecs.DeregisterTaskDefinition(ctx, &ecs.DeregisterTaskDefinitionInput{
-		TaskDefinition: out.TaskDefinition.TaskDefinitionArn,
-	})
-	if err != nil {
-		return nil, err
+	if input.Deregister {
+		// deregister old task definition
+		_, err = d.ecs.DeregisterTaskDefinition(ctx, &ecs.DeregisterTaskDefinitionInput{
+			TaskDefinition: out.TaskDefinition.TaskDefinitionArn,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return td.TaskDefinition, nil

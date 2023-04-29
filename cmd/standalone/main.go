@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/falmar/go-ecs-service-deployer/internal"
+	"github.com/falmar/ecs-service-deployer/internal"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -32,22 +32,30 @@ func initConfig(l *zap.Logger) func() {
 
 func setFlags(cmd *cobra.Command) {
 	cmd.Flags().StringArrayP("containers", "c", []string{}, "Container images to update eg: (-c con1=image1 -c con2=image2)")
-	cmd.Flags().String("task", "", "ECS Task Definition family to update")
-	cmd.Flags().String("svc", "", "ECS Service to deploy")
-	cmd.Flags().String("cluster", "", "ECS Service's Cluster ARN")
+	cmd.Flags().String("task", "", "ECS Task Definition family")
+	cmd.Flags().String("service", "", "ECS Service name or ARN")
+	cmd.Flags().String("cluster", "", "ECS Service's Cluster Name or ARN")
 	cmd.Flags().String("region", "", "AWS Region")
+	cmd.Flags().BoolP("deregister", "d", false, "Deregister old task definition")
 
 	_ = viper.BindPFlag("containers", cmd.Flags().Lookup("containers"))
-	_ = viper.BindPFlag("task", cmd.Flags().Lookup("task"))
-	_ = viper.BindPFlag("svc", cmd.Flags().Lookup("svc"))
-	_ = viper.BindPFlag("cluster", cmd.Flags().Lookup("cluster"))
+	_ = viper.BindPFlag("ecs.task", cmd.Flags().Lookup("task"))
+	_ = viper.BindPFlag("ecs.service", cmd.Flags().Lookup("service"))
+	_ = viper.BindPFlag("ecs.cluster", cmd.Flags().Lookup("cluster"))
 	_ = viper.BindPFlag("aws.region", cmd.Flags().Lookup("region"))
+	_ = viper.BindPFlag("ecs.deregister", cmd.Flags().Lookup("deregister"))
 }
 
 func main() {
-	lConfig := zap.NewDevelopmentConfig()
-	lConfig.DisableCaller = true
-	lConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	var lConfig zap.Config
+	if os.Getenv("DEBUG") != "" {
+		lConfig = zap.NewDevelopmentConfig()
+		lConfig.DisableCaller = true
+		lConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	} else {
+		lConfig = zap.NewProductionConfig()
+	}
+
 	logger, _ := lConfig.Build()
 
 	cobra.OnInitialize(initConfig(logger))
@@ -62,9 +70,10 @@ func main() {
 			// init flags
 			var containers []internal.ContainerImage
 			c := viper.GetStringSlice("containers")
-			task := viper.GetString("task")
-			svc := viper.GetString("svc")
-			cluster := viper.GetString("cluster")
+			task := viper.GetString("ecs.task")
+			svc := viper.GetString("ecs.service")
+			cluster := viper.GetString("ecs.cluster")
+			deregister := viper.GetBool("ecs.deregister")
 
 			if region := viper.GetString("aws.region"); region == "" {
 				return errors.New("no AWS Region specified")
@@ -91,13 +100,13 @@ func main() {
 			}
 
 			// init AWS config
-			var options []func(*config.LoadOptions) error
+			var options []func(*awsconfig.LoadOptions) error
 			if viper.GetString("aws.region") != "" {
-				options = append(options, config.WithRegion(viper.GetString("aws.region")))
+				options = append(options, awsconfig.WithRegion(viper.GetString("aws.region")))
 			}
 			if viper.GetString("aws.access_key_id") != "" &&
 				viper.GetString("aws.secret_access_key") != "" {
-				options = append(options, config.WithCredentialsProvider(
+				options = append(options, awsconfig.WithCredentialsProvider(
 					credentials.NewStaticCredentialsProvider(
 						viper.GetString("aws.access_key_id"),
 						viper.GetString("aws.secret_access_key"),
@@ -106,7 +115,7 @@ func main() {
 				))
 			}
 
-			awsConfig, err := config.LoadDefaultConfig(ctx, options...)
+			awsConfig, err := awsconfig.LoadDefaultConfig(ctx, options...)
 			if err != nil {
 				return errors.Wrap(err, "error loading AWS config")
 			}
@@ -117,8 +126,9 @@ func main() {
 
 			// update task
 			taskDefinition, err := dp.UpdateTask(ctx, &internal.UpdateTaskInput{
-				Family: task,
-				Images: containers,
+				Family:     task,
+				Images:     containers,
+				Deregister: deregister,
 			})
 			if err != nil {
 				return err
