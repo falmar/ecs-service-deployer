@@ -9,7 +9,7 @@ env:
   REGISTRY: docker.io
   DOCKER_USERNAME: ${{ vars.HUB_USERNAME }}
   DOCKER_IMAGE: ecs-service-deployer
-  DOCKER_IMAGE_TAG: ${{ inputs.image_tag }}
+  DOCKER_IMAGE_TAG: latest
 
 jobs:
   build:
