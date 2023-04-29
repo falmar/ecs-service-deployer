@@ -1,6 +1,8 @@
 name: build
+
 on:
-  push:
+  workflow_call:
+  pull_request:
     branches:
       - master
       - dev
@@ -34,12 +36,3 @@ jobs:
           CGO_ENABLED: "0"
           GOOS: linux
           GOARCH: ${{ matrix.platform }}
-
-  push:
-    if: ${{ success() }}
-    needs: build
-    uses: ./.github/workflows/push.yaml
-    with:
-      image_tag: "latest"
-    secrets:
-      HUB_PASSWORD: ${{ secrets.HUB_PASSWORD }}

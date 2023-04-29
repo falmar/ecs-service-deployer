@@ -1,16 +1,9 @@
 name: push_image
 
 on:
-  workflow_call:
-    inputs:
-      image_tag:
-        type: string
-        description: 'The tag of the image to push'
-        required: true
-        default: 'latest'
-    secrets:
-      HUB_PASSWORD:
-        required: true
+  push:
+    branches:
+      - master
 
 env:
   REGISTRY: docker.io
@@ -19,8 +12,12 @@ env:
   DOCKER_IMAGE_TAG: ${{ inputs.image_tag }}
 
 jobs:
+  build:
+    uses: ./.github/workflows/build.yaml
+
   image:
-    if: github.ref == 'refs/heads/master'
+    if: ${{ success() }}
+    needs: build
     env:
       platform: linux/amd64,linux/arm64
     runs-on: ubuntu-latest
