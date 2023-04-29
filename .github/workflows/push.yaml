@@ -20,6 +20,7 @@ env:
 
 jobs:
   image:
+    if: github.ref == 'refs/heads/master'
     env:
       platform: linux/amd64,linux/arm64
     runs-on: ubuntu-latest
