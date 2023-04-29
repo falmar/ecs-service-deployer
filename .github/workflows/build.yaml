@@ -1,0 +1,44 @@
+name: build
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [ amd64, arm64 ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ">=1.19"
+      - run: go version
+
+      - name: "Install dependencies"
+        run: go mod download
+
+      - name: "Build Lambda"
+        run: go build -o ./bin/main ./cmd/lambda
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: ${{ matrix.platform }}
+
+      - name: "Build standalone"
+        run: go build -o ./bin/main ./cmd/standalone
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: ${{ matrix.platform }}
+
+  push:
+    if: ${{ success() }}
+    needs: build
+    uses: ./.github/workflows/push.yaml
+    with:
+      image_tag: "latest"
+    secrets:
+      HUB_PASSWORD: ${{ secrets.HUB_PASSWORD }}

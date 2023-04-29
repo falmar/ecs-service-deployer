@@ -1,15 +1,22 @@
 name: push_image
+
 on:
-  push:
-    # this should be release tags
-    branches:
-      - master
+  workflow_call:
+    inputs:
+      image_tag:
+        type: string
+        description: 'The tag of the image to push'
+        required: true
+        default: 'latest'
+    secrets:
+      HUB_PASSWORD:
+        required: true
 
 env:
   REGISTRY: docker.io
   DOCKER_USERNAME: ${{ vars.HUB_USERNAME }}
   DOCKER_IMAGE: ecs-service-deployer
-  DOCKER_IMAGE_TAG: latest
+  DOCKER_IMAGE_TAG: ${{ inputs.image_tag }}
 
 jobs:
   push_image:
