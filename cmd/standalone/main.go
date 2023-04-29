@@ -93,7 +93,7 @@ func main() {
 			// init AWS config
 			var options []func(*config.LoadOptions) error
 			if viper.GetString("aws.region") != "" {
-				options = append(options, config.WithDefaultRegion(viper.GetString("aws.region")))
+				options = append(options, config.WithRegion(viper.GetString("aws.region")))
 			}
 			if viper.GetString("aws.access_key_id") != "" &&
 				viper.GetString("aws.secret_access_key") != "" {
