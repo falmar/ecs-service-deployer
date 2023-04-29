@@ -4,7 +4,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY /cmd /go-app/cmd
 COPY /internal /go-app/internal
-RUN CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o ./main ./cmd/lambda && \
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ./main ./cmd/lambda && \
     chmod +x ./main
 
 FROM public.ecr.aws/lambda/go:1.2023.04.18.01
