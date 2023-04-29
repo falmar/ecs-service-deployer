@@ -1,4 +1,4 @@
-module github.com/falmar/go-ecs-service-deployer
+module github.com/falmar/ecs-service-deployer
 
 go 1.19
 
