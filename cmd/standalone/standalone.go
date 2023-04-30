@@ -1,7 +1,6 @@
-package main
+package standalone
 
 import (
-	"context"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
@@ -10,34 +9,49 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"os"
 	"strings"
 )
 
 func initConfig(l *zap.Logger) func() {
 	return func() {
-		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
-		viper.AddConfigPath("./config")
-
-		if err := viper.ReadInConfig(); err != nil {
-			l.Fatal("Error reading config file", zap.Error(err))
+		configPath := viper.GetString("config")
+		if configPath != "" {
+			viper.SetConfigFile(configPath)
+		} else {
+			viper.AddConfigPath("./config")
+			viper.SetConfigName("config")
+			viper.SetConfigType("yaml")
 		}
 
-		l.Info("Using config file", zap.String("path", viper.ConfigFileUsed()))
 		viper.AutomaticEnv()
+
+		err := viper.ReadInConfig()
+		if errors.Is(err, os.ErrNotExist) {
+			if configPath != "" {
+				l.Fatal("config file not found", zap.String("path", configPath))
+			}
+
+			l.Warn("config file not found, skipping")
+			return
+		} else if err != nil {
+			l.Fatal("error reading config file", zap.Error(err))
+		}
+
+		l.Info("using config file", zap.String("path", viper.ConfigFileUsed()))
 	}
 }
 
 func setFlags(cmd *cobra.Command) {
-	cmd.Flags().StringArrayP("containers", "c", []string{}, "Container images to update eg: (-c con1=image1 -c con2=image2)")
+	cmd.Flags().StringP("config", "c", "", "config file")
+	cmd.Flags().StringArray("containers", []string{}, "Container images to update eg: (--containers con1=image1 --containers con2=image2)")
 	cmd.Flags().String("task", "", "ECS Task Definition family")
 	cmd.Flags().String("service", "", "ECS Service name or ARN")
 	cmd.Flags().String("cluster", "", "ECS Service's Cluster Name or ARN")
 	cmd.Flags().String("region", "", "AWS Region")
 	cmd.Flags().BoolP("deregister", "d", false, "Deregister old task definition")
 
+	_ = viper.BindPFlag("config", cmd.Flags().Lookup("config"))
 	_ = viper.BindPFlag("containers", cmd.Flags().Lookup("containers"))
 	_ = viper.BindPFlag("ecs.task", cmd.Flags().Lookup("task"))
 	_ = viper.BindPFlag("ecs.service", cmd.Flags().Lookup("service"))
@@ -46,24 +60,15 @@ func setFlags(cmd *cobra.Command) {
 	_ = viper.BindPFlag("ecs.deregister", cmd.Flags().Lookup("deregister"))
 }
 
-func main() {
-	var lConfig zap.Config
-	if os.Getenv("DEBUG") != "" {
-		lConfig = zap.NewDevelopmentConfig()
-		lConfig.DisableCaller = true
-		lConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	} else {
-		lConfig = zap.NewProductionConfig()
-	}
-
-	logger, _ := lConfig.Build()
+func Cmd(logger *zap.Logger) *cobra.Command {
 
 	cobra.OnInitialize(initConfig(logger))
-	ctx := context.Background()
 
 	var rootCmd = &cobra.Command{
-		Use:   "deploy",
-		Short: "Deployer is a lambda function that deploys a ECS Service",
+		Use:           "deploy",
+		Short:         "Deployer is a lambda function that deploys a ECS Service",
+		SilenceErrors: true,
+		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -75,9 +80,6 @@ func main() {
 			cluster := viper.GetString("ecs.cluster")
 			deregister := viper.GetBool("ecs.deregister")
 
-			if region := viper.GetString("aws.region"); region == "" {
-				return errors.New("no AWS Region specified")
-			}
 			if task == "" {
 				return errors.New("no ECS Task Definition family specified")
 			}
@@ -155,8 +157,5 @@ func main() {
 	}
 	setFlags(rootCmd)
 
-	if err := rootCmd.ExecuteContext(ctx); err != nil {
-		logger.Fatal("Error executing command", zap.Error(err))
-	}
-	os.Exit(0)
+	return rootCmd
 }
