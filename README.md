@@ -8,11 +8,12 @@ Lambda function. While it is up to you how to use this Lambda function, a recomm
 2. [Docker Images](#docker-images)
 3. [Getting Started](#getting-started)
 4. [Building the AWS Lambda Image](#building-the-aws-lambda-image)
-5. [Local Testing](#local-testing)
-6. [Contributing](#contributing)
-7. [License](#license)
-8. [Motivation](#motivation)
-9. [TODO](#todo)
+5. [Testing Lambda Locally](#testing-lambda-locally)
+6. [Deployer CLI](#ecs-service-deployer-cli)
+7. [Contributing](#contributing)
+8. [License](#license)
+9. [Motivation](#motivation)
+10. [TODO](#todo)
 
 ## Requirements
 
@@ -49,7 +50,7 @@ Replace <your-aws-ecr-registry-url> with your own AWS ECR registry URL. This com
 
 To create a image for a different platform, follow the instructions in the [Docker documentation](https://docs.docker.com/build/building/multi-platform/).
 
-## Local Testing
+## Testing Lambda Locally
 
 You can test the application locally using Docker. The `local.Dockerfile` is provided for this purpose.
 
@@ -70,6 +71,48 @@ docker run --rm -it -p 9000:8080 -e DEBUG=1 -e AWS_LAMBDA_FUNCTION_MEMORY_SIZE=5
 
 The application will be accessible at `http://localhost:9000`. Make sure to set any required environment variables and configure your local AWS credentials for testing.
 
+## ECS Service Deployer CLI
+
+In addition to the Lambda function, you can also use the provided CLI to deploy your ECS services on demand. The CLI offers the same functionality as the Lambda function and can be executed locally.
+
+### Usage
+
+To use the ECS Service Deployer CLI, run the following command:
+
+```bash
+$ go run ./cmd/standalone --service=<ECS_SERVICE> --cluster=<ECS_CLUSTER> --task=<ECS_TASK_FAMILY> --containers <CONTAINER_NAME>=<CONTAINER_IMAGE>
+```
+
+Replace `<ECS_SERVICE>`, `<ECS_CLUSTER>`, `<ECS_TASK_FAMILY>`, `<CONTAINER_NAME>`, and `<CONTAINER_IMAGE>` with the appropriate values for your use case.
+
+
+> NOTE: You can also install the CLI on your system by running the following command:
+
+```bash
+$ go install .
+```
+
+### Example
+
+Here's an example of how to use the CLI to deploy an ECS service:
+
+```bash
+$ go run ./cmd/standalone --service=ecs_deployer_test --cluster=ecs_deployer_test --task=ecs_deployer_test --containers test=nginx:alpine
+```
+
+This command will deploy the `ecs_deployer_test` service on the `ecs_deployer_test` cluster, using the `ecs_deployer_test` task family and updating the container named `test` with the `nginx:alpine` image.
+
+Make sure your AWS credentials and configuration are properly set up in your environment before using the CLI.
+
+### Terraform template
+
+A Terraform template is provided in the [./terraform/ecs.tf](./terraform/ecs.tf) file, which you can use to set up the required AWS resources for your ECS service. Make sure to customize the template according to your needs before using it.
+
+```bash
+$ terraform init
+# change the service_count variable to the number of services you want to deploy or leave it as is to just create the resources
+$ terraform apply --var service_count=0
+```
 
 ## Contributing
 
@@ -85,7 +128,5 @@ This project is licensed under the MIT License.
 Why build my own ECS service deployer when there are already better tools and solutions out there? Well, the answer is simple: for the joy of learning by reinventing the wheel! This project was created to serve my own workflows. So, whether you're using this tool or just browsing the code, I hope you find it helpful or, at the very least, entertaining. Remember, there's never a wrong time to learn something new!
 
 ## TODO:
-
----
 
 - [ ] Add which aws permissions are needed
