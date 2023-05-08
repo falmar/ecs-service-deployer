@@ -66,6 +66,9 @@ func (d *deployer) UpdateTask(ctx context.Context, input *UpdateTaskInput) (*typ
 
 	out, err := d.ecs.DescribeTaskDefinition(ctx, &ecs.DescribeTaskDefinitionInput{
 		TaskDefinition: aws.String(defOut.TaskDefinitionArns[0]),
+		Include: []types.TaskDefinitionField{
+			types.TaskDefinitionFieldTags,
+		},
 	})
 	if err != nil {
 		return nil, err
