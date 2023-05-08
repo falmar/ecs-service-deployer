@@ -10,10 +10,11 @@ Lambda function. While it is up to you how to use this Lambda function, a recomm
 4. [Building the AWS Lambda Image](#building-the-aws-lambda-image)
 5. [Testing Lambda Locally](#testing-lambda-locally)
 6. [Deployer CLI](#ecs-service-deployer-cli)
-7. [Contributing](#contributing)
-8. [License](#license)
-9. [Motivation](#motivation)
-10. [TODO](#todo)
+7. [AWS Permissions](#aws-permissions)
+8. [Contributing](#contributing)
+9. [License](#license)
+10. [Motivation](#motivation)
+11. [TODO](#todo)
 
 ## Requirements
 
@@ -113,6 +114,60 @@ $ terraform init
 # change the service_count variable to the number of services you want to deploy or leave it as is to just create the resources
 $ terraform apply --var service_count=0
 ```
+
+## AWS Permissions
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SvcWrite",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:UpdateService",
+        "ecs:DescribeServices"
+      ],
+      "Resource": "arn:aws:ecs:<region>:<account>:service/<cluster>/<svc>",
+      "Condition": {
+        "ArnEquals": {
+          "ecs:cluster": "arn:aws:ecs:<region>:<account>:cluster/<cluster>"
+        },
+        "StringEqualsIfExists": {
+          "aws:ResourceTag/ECS_Deployer": "true"
+        }
+      }
+    },
+    {
+      "Sid": "TaskRead",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:ListTaskDefinitions",
+        "ecs:DescribeTaskDefinition",
+        "ecs:DeregisterTaskDefinition"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "TaskWrite",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:RegisterTaskDefinition"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEqualsIfExists": {
+          "aws:ResourceTag/ECS_Deployer": "true"
+        }
+      }
+    }
+  ]
+}
+```
+
+Replace `<region>`, `<account>`, `<cluster>`, `<svc>`, and `<TASK_FAMILY>` with the appropriate values for your use case.
+
+> "List, Describe and Deregister" for TaskDefinition doesn't allow conditions or resource level permissions [see here](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonelasticcontainerservice.html), so they are allowed for all resources. 
 
 ## Contributing
 

@@ -61,7 +61,6 @@ func setFlags(cmd *cobra.Command) {
 }
 
 func Cmd(logger *zap.Logger) *cobra.Command {
-
 	cobra.OnInitialize(initConfig(logger))
 
 	var rootCmd = &cobra.Command{
